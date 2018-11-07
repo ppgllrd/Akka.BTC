@@ -8,7 +8,7 @@
 package network.message
 
 import bytes._
-import network.node.Node
+import network.btc.BtcNode
 
 
 object Header {
@@ -21,7 +21,7 @@ object Header {
 
   private val headerLength = Length.magic + Length.command + Length.length + Length.checksum
 
-  private val magicBytes = ToBytes.fromInt(Node.magic, Length.magic)
+  private val magicBytes = ToBytes.fromInt(BtcNode.magic, Length.magic)
 
   def fromBytesOpt(bs : ByteString) : Option[(Header, ByteString)] = {
     val i = bs.indexOfSlice(magicBytes)

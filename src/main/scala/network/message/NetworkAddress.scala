@@ -7,12 +7,15 @@
 
 package network.message
 
-import java.net.InetAddress
+import java.net.{InetAddress, InetSocketAddress}
 
 import bytes._
 import util.UnixTime
 
 object NetworkAddress {
+  def apply(time : Long, services : Long, inetSocketAddress : InetSocketAddress) : NetworkAddress =
+    NetworkAddress(time, services, InetAddress.getByAddress(inetSocketAddress.getAddress.getAddress), inetSocketAddress.getPort)
+
   val ip4prefix : ByteString = ByteString.fromArrayUnsafe(Array.fill[Byte](10)(0) ++ Array.fill[Byte](2)(0xFF.toByte))
 
   def fromBytes(bs : ByteString, includeTime : Boolean = true) : (NetworkAddress, ByteString) = {
@@ -41,7 +44,6 @@ object NetworkAddress {
 
 
 case class NetworkAddress(time : Long, services : Long, inetAddress : InetAddress, port : Int) {
-
   def toBytes(includeTime : Boolean = true) : ByteString = {
     var ip = ByteString.fromArrayUnsafe(inetAddress.getAddress)
     if(ip.length < 16)

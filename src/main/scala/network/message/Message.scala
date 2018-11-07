@@ -8,8 +8,7 @@
 package network.message
 
 import bytes._
-import network.message.{Header, RawMessage}
-import network.node.Node
+import network.btc.BtcNode
 import util.hash.SHA256
 import util.{Random, UnixTime}
 
@@ -23,7 +22,7 @@ trait Message {
     val checksum =
       SHA256.doubleSha256(payload).take(4)
 
-    Header(Node.magic, command, payloadLength, checksum)
+    Header(BtcNode.magic, command, payloadLength, checksum)
   }
 
   def toRawMessage: RawMessage =
