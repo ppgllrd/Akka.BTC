@@ -7,30 +7,33 @@
 
 package network.tcp
 
-import java.net.InetSocketAddress
-
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, Props}
 import akka.io.Tcp.{Bind, Bound, CommandFailed}
 import akka.io.{IO, Tcp}
 import network.btc.BtcNode
 
 object TcpServer {
-  def props(actorSystem: ActorSystem, tcpConnectionManager: ActorRef) =
-    Props(classOf[TcpServer], actorSystem,tcpConnectionManager)
+  def props(btcNode : BtcNode) =
+    Props(classOf[TcpServer], btcNode)
 }
 
-case class TcpServer(actorSystem: ActorSystem, tcpConnectionManager: ActorRef) extends Actor {
+case class TcpServer(btcNode : BtcNode) extends Actor {
   import context.system
-  IO(Tcp) ! Tcp.Bind(self, new InetSocketAddress("127.0.0.1", BtcNode.tcpServerPort))
+  private val tcpConnectionManager = btcNode.tcpConnectionManager
+
+  IO(Tcp) ! Tcp.Bind(self, BtcNode.tcpServerAddress)
+
   def receive = {
     case b @ Bound(localAddress) =>
       println(s"TcpServer listening on $localAddress")
 
-    case CommandFailed(_: Bind) =>
+    case CommandFailed(what: Bind) =>
+      println(s"TcpServer failed $what")
       context stop self
 
     case Tcp.Connected(remote, local) =>
       println(s"New incoming connection from $remote")
-      tcpConnectionManager ! TcpConnectionManager.CreateIncomingConnection(remote)
+      val tcpManager = sender()
+      tcpConnectionManager ! TcpConnectionManager.CreateIncomingConnection(local, remote, tcpManager)
   }
 }

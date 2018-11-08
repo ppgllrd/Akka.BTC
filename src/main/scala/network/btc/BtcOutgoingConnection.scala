@@ -8,43 +8,54 @@
 package network.btc
 
 import java.net.InetAddress
-import akka.actor.{Actor, ActorSystem, Props}
+
+import akka.actor.{Actor, Props}
 import network.message._
 import network.tcp.TcpConnection
 import util.{Random, UnixTime}
 
 object BtcOutgoingConnection {
-  def props(tcpConnection: TcpConnection, actorSystem: ActorSystem) =
-    Props(classOf[BtcOutgoingConnection], tcpConnection, actorSystem)
+  def props(btcNode: BtcNode, tcpConnection: TcpConnection) =
+    Props(classOf[BtcOutgoingConnection], btcNode, tcpConnection)
 }
 
-case class BtcOutgoingConnection(tcpConnection: TcpConnection, actorSystem: ActorSystem) extends Actor {
-  private val tcpConnectionActor = tcpConnection.self
+case class BtcOutgoingConnection(btcNode: BtcNode, tcpConnection: TcpConnection) extends Actor {
+  val actorSystem = btcNode.actorSystem
 
   // start handshake
-  val Some(local) = tcpConnection.local
-  val Some(remote) = tcpConnection.remote
-
-  // todo use my ip
-  private val version = Version(BtcNode.version, BtcNode.services, UnixTime.now, NetworkAddress(0, 0, remote), NetworkAddress(0, BtcNode.services, local), Random.nonce, BtcNode.userAgent, 0, false)
-  tcpConnectionActor ! version
+  private val versionOut =
+    Version(BtcNode.version, BtcNode.services, UnixTime.now
+      , NetworkAddress(0, 0, tcpConnection.remote)
+      , NetworkAddress(0, BtcNode.services, tcpConnection.local)
+      , Random.nonce
+      , BtcNode.userAgent, 0, false
+    )
+  tcpConnection.conn ! versionOut
 
   def receive: Receive = {
-    case version: Version =>
+    case versionIn: Version =>
       // complete handshake
-      tcpConnectionActor ! Verack
+      tcpConnection.conn ! Verack
 
-      tcpConnectionActor ! Addr(VariableLengthInt(1), List(NetworkAddress(UnixTime.now, BtcNode.services, InetAddress.getByAddress(version.addrRecv.inetAddress.getAddress), 8333)))
+      // send our server address
+      val myAddress = InetAddress.getByAddress(versionIn.addrRecv.inetAddress.getAddress)
+      val myPort = BtcNode.tcpServerAddress.getPort
+      val myServices = BtcNode.services
+      tcpConnection.conn ! Addr(VariableLengthInt(1), List(NetworkAddress(UnixTime.now, myServices, myAddress, myPort)))
 
       context become {
         case Ping(nonce) =>
-          tcpConnectionActor ! Pong(nonce)
+          tcpConnection.conn ! Pong(nonce)
 
-        case addr: Addr =>
+        case addr@Addr(count, addrList) =>
           println("Got :"+addr)
+          for(networkAddress <- addrList)
+            btcNode.networkAddresses ! NetworkAddresses.Add(networkAddress)
 
         case other =>
           println("Got :"+other)
       }
+
+      tcpConnection.conn ! Getaddr
   }
 }

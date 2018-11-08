@@ -49,7 +49,7 @@ case class NetworkAddress(time : Long, services : Long, inetAddress : InetAddres
     if(ip.length < 16)
       ip = NetworkAddress.ip4prefix ++ ip
     val servicesBs = ToBytes.fromLong(services, 8)
-    val portBs = ToBytes.fromInt(port, 2)
+    val portBs = ToBytes.LittleEndian.fromInt(port, 2)
     var bs = servicesBs ++ ip ++ portBs
     if(includeTime)
       bs = ToBytes.fromLong(time, 4) ++ bs
@@ -61,4 +61,15 @@ case class NetworkAddress(time : Long, services : Long, inetAddress : InetAddres
 
   override def toString: String =
     toString(true)
+
+  override def equals(o: scala.Any): Boolean = o match {
+    case that: NetworkAddress =>
+      this.inetAddress.equals(that.inetAddress)
+    case _ =>
+      false
+  }
+
+  override def hashCode(): Int =
+    inetAddress.hashCode()
+
 }

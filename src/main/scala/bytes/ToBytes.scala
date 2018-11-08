@@ -8,6 +8,11 @@
 package bytes
 
 object ToBytes {
+  object LittleEndian {
+    def fromInt(x : Int, nBytes : Int = 4) : ByteString =
+      ToBytes.fromInt(x, nBytes).reverse
+  }
+
   def fromInt(x : Int, nBytes : Int = 4) : ByteString = {
     val bs = new Array[Byte](nBytes)
     var n = x

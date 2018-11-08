@@ -19,30 +19,38 @@ object BtcNode {
   val version : Int = 70005
   val userAgent = "ScalaBTC:0.0.1"
 
-  val tcpServerPort : Int = 8333
-
-  def props(actorSystem: ActorSystem) =
-    Props(classOf[BtcNode], actorSystem)
+  val tcpServerAddress = new InetSocketAddress("127.0.0.1", 8333)
 }
 
+case class BtcNode(actorSystem: ActorSystem) {
+  val tcpConnectionManager = actorSystem.actorOf(TcpConnectionManager.props(this))
+  val tcpServer = actorSystem.actorOf(TcpServer.props(this))
+  val networkAddresses = actorSystem.actorOf(NetworkAddresses.props(this))
+}
 
-case class BtcNode(actorSystem: ActorSystem) extends Actor {
-  val tcpConnectionManager = actorSystem.actorOf(TcpConnectionManager.props(actorSystem))
-  val tcpServer = actorSystem.actorOf(TcpServer.props(actorSystem, tcpConnectionManager))
+object BtcNodeActor {
+  def props(actorSystem: ActorSystem) =
+    Props(classOf[BtcNodeActor], actorSystem)
+}
+
+case class BtcNodeActor(actorSystem: ActorSystem) extends Actor {
+  val btcNode = BtcNode(actorSystem)
 
   val remote1 = new InetSocketAddress("54.36.61.219", 8333)
   val remote2 = new InetSocketAddress("82.74.137.168", 8333)
   val remote3 = new InetSocketAddress("183.193.213.254", 8333)
   val remote4 = new InetSocketAddress("34.237.15.134", 8333)
   val remote5 = new InetSocketAddress("183.193.213.254", 8333)
-
   val remotes = List(remote1, remote2, remote3, remote4, remote5)
 
-//  for(remote <- remotes)
-//    tcpConnectionManager ! TcpConnectionManager.CreateOutgoingConnection(remote)
+  for(remote <- remotes)
+    btcNode.tcpConnectionManager ! TcpConnectionManager.CreateOutgoingConnection(remote)
 
-  def receive: Receive = {
-    case m =>
-      println(m)
+  val remote6 = BtcNode.tcpServerAddress
+  // btcNode.tcpConnectionManager ! TcpConnectionManager.CreateOutgoingConnection(remote6)
+
+  override def receive: Receive = {
+    case _ =>
+      ;
   }
 }

@@ -37,6 +37,7 @@ object Message {
   def fromRawMessage(rawMessage : RawMessage) : Message =
     rawMessage.header.command match {
       case "version" =>
+        // todo I see state transformer monads all around me
         val (version, bs1) = FromBytes.int(rawMessage.payload, 4)
         val (services, bs2) = FromBytes.long(bs1, 8)
         val (timestamp, bs3) = FromBytes.long(bs2, 8)
@@ -61,14 +62,12 @@ object Message {
 
       case "addr" =>
         val (count, bs1) = VariableLengthInt.fromBytes(rawMessage.payload)
-        println("addr count="+count)
 
         var bs = bs1
         var addrs = List[NetworkAddress]()
         for(i <- 0L until count.value.toLong) {
           val (addr, bs2) = NetworkAddress.fromBytes(bs)
           addrs ::= addr
-          println(i, addr)
           bs = bs2
         }
 
@@ -87,6 +86,9 @@ case class Unsupported(msg : String) extends Message {
 
 case class Addr(count : VariableLengthInt, addrList : Seq[NetworkAddress]) extends Message {
   override val command = "addr"
+  override val payload = {
+    count.toBytes ++ addrList.flatMap(_.toBytes())
+  }
 }
 
 

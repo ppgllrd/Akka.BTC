@@ -6,10 +6,11 @@
   ****************************************************************************/
 
 import akka.actor.ActorSystem
-import network.btc.BtcNode
+import network.btc.BtcNodeActor
 
 object Main extends App {
   private implicit val actorSystem = ActorSystem()
 
-  private val btcNode = actorSystem.actorOf(BtcNode.props(actorSystem))
+  // create root actor
+  val btcNodeActor = actorSystem.actorOf(BtcNodeActor.props(actorSystem))
 }
