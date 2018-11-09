@@ -35,16 +35,20 @@ case class BtcIncomingConnection(btcNode: BtcNode, tcpConnection: TcpConnection)
 
           // behaviour after handshake
           context become {
-            case Ping(nonce) =>
+            case ping@Ping(nonce) =>
+              println(s"Got $ping")
               tcpConnection.conn ! Pong(nonce)
 
             case addr@Addr(count, addrList) =>
-              println("Got :"+addr)
+              println(s"Got $addr")
               for(networkAddress <- addrList)
                 btcNode.networkAddresses ! NetworkAddresses.Add(networkAddress)
 
+            case Malformed(rawMessage, ccode) =>
+              println(s"Got a malformed message: $ccode")
+
             case other =>
-              println("Got :"+other)
+              println(s"Got $other")
           }
       }
   }

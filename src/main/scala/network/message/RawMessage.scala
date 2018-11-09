@@ -19,7 +19,6 @@ object RawMessage {
           None
         else {
           val (payload, bs2) = bs1.splitAt(header.payloadLength.toInt)
-          // todo verify checksum
           val msg = RawMessage(header, payload)
 
           Some((msg, bs2))

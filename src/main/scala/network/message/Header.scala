@@ -31,19 +31,15 @@ object Header {
     else {
       val bs1 = bs.drop(i)
       if(i>0)
-        println(s"Dropped $i bytes") //todo use log
+        println(s"Dropped $i bytes") //todo use log and pass this information somehow to BtcConnection
 
       if (bs1.length < headerLength)
         None
       else {
         val (magic, bs2) = FromBytes.int(bs1, Length.magic)
-
         val (commandBytes, bs3) = bs2.splitAt(Length.command)
-        // todo check all trailing bytes are 0
         val command = commandBytes.decodeString(java.nio.charset.StandardCharsets.US_ASCII).takeWhile(_ != 0)
-
         val (payloadLength, bs4) = FromBytes.long(bs3, Length.length)
-
         val (checksum, bs5) = bs4.splitAt(Length.checksum)
 
         val header = Header(magic, command, payloadLength, checksum)

@@ -45,22 +45,26 @@ case class BtcOutgoingConnection(btcNode: BtcNode, tcpConnection: TcpConnection)
           val myAddress = InetAddress.getByAddress(versionIn.addrRecv.inetAddress.getAddress)
           val myPort = BtcNode.tcpServerAddress.getPort
           val myServices = BtcNode.services
-          tcpConnection.conn ! Addr(VariableLengthInt(1), List(NetworkAddress(UnixTime.now, myServices, myAddress, myPort)))
+          tcpConnection.conn ! Addr(1, List(NetworkAddress(UnixTime.now, myServices, myAddress, myPort)))
 
           // ask peer for known addresses
           tcpConnection.conn ! Getaddr
 
           context become {
-            case Ping(nonce) =>
+            case ping@Ping(nonce) =>
+              println(s"Got $ping")
               tcpConnection.conn ! Pong(nonce)
 
             case addr@Addr(count, addrList) =>
-              println("Got :" + addr)
+              println(s"Got $addr")
               for (networkAddress <- addrList)
                 btcNode.networkAddresses ! NetworkAddresses.Add(networkAddress)
 
+            case Malformed(rawMessage, ccode) =>
+              println(s"Got a malformed message: $ccode")
+
             case other =>
-              println("Got :" + other)
+              println(s"Got $other")
           }
       }
   }

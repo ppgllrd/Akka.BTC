@@ -13,6 +13,11 @@ object ToBytes {
       ToBytes.fromInt(x, nBytes).reverse
   }
 
+  def fromByte(x : Byte) : ByteString = {
+    val bs = Array[Byte](x)
+    ByteString.fromArrayUnsafe(bs)
+  }
+
   def fromInt(x : Int, nBytes : Int = 4) : ByteString = {
     val bs = new Array[Byte](nBytes)
     var n = x

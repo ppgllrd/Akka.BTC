@@ -43,7 +43,6 @@ case class NetworkAddresses(btcNode: BtcNode) extends Actor {
   override def receive: Receive = {
     case Add(networkAddress) =>
       addresses.add(networkAddress)
-      println(addresses.size)
       if(addresses.size % 100 == 0)
         print()
   }

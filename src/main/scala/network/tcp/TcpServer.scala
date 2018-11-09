@@ -27,8 +27,8 @@ case class TcpServer(btcNode : BtcNode) extends Actor {
     case Bound(localAddress) =>
       println(s"TcpServer listening on $localAddress")
 
-    case CommandFailed(what: Bind) =>
-      println(s"TcpServer failed $what")
+    case cf@CommandFailed(what: Bind) =>
+      println(s"TcpServer failed $cf")
       context stop self
 
     case Tcp.Connected(remote, local) =>

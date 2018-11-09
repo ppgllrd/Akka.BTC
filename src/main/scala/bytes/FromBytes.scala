@@ -38,6 +38,10 @@ object FromBytes {
     (int, bs2)
   }
 
+  def byte(bs : ByteString) : (Byte, ByteString) = {
+    (bs.head, bs.tail)
+  }
+
   def bool(bs : ByteString) : (Boolean, ByteString) =
     (bs(0)==1, bs.tail)
 }

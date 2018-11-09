@@ -34,60 +34,77 @@ trait Message {
 
 
 object Message {
-  def fromRawMessage(rawMessage : RawMessage) : Message =
-    rawMessage.header.command match {
-      case "version" =>
-        // todo I see state transformer monads all around me
-        val (version, bs1) = FromBytes.int(rawMessage.payload, 4)
-        val (services, bs2) = FromBytes.long(bs1, 8)
-        val (timestamp, bs3) = FromBytes.long(bs2, 8)
-        val (addrRecv, bs4) = NetworkAddress.fromBytes(bs3, false)
-        val (addrFrom, bs5) = NetworkAddress.fromBytes(bs4, false)
-        val (nonce, bs6) = FromBytes.long(bs5, 8)
-        val (userAgent, bs7) = VariableLengthString.fromBytes(bs6)
-        val (height, bs8) = FromBytes.int(bs7, 4)
-        val (relay, bs9) = if(bs8.nonEmpty) FromBytes.bool(bs8) else (false, bs8)
+  def fromRawMessage(rawMessage : RawMessage) : Either[Malformed,Message] = {
 
-        Version(version, services, timestamp, addrRecv, addrFrom, nonce, userAgent, height, relay)
+    // verify checksum
+    if (rawMessage.header.checksum != SHA256.doubleSha2564Bytes(rawMessage.payload))
+      Left(Malformed(rawMessage, CCodes.REJECT_MALFORMED))
+    else {
+      // check all trailing bytes in command are 0
+      val (command, remaining) = rawMessage.header.command.span(_ != 0)
+      if (remaining.exists(_ != 0))
+        Left(Malformed(rawMessage, CCodes.REJECT_MALFORMED))
+      else {
+        val message = command match {
+          case "version" =>
+            // todo I see state transformer monads all around me
+            val (version, bs1) = FromBytes.int(rawMessage.payload, 4)
+            val (services, bs2) = FromBytes.long(bs1, 8)
+            val (timestamp, bs3) = FromBytes.long(bs2, 8)
+            val (addrRecv, bs4) = NetworkAddress.fromBytes(bs3, false)
+            val (addrFrom, bs5) = NetworkAddress.fromBytes(bs4, false)
+            val (nonce, bs6) = FromBytes.long(bs5, 8)
+            val (userAgent, bs7) = VariableLengthString.fromBytes(bs6)
+            val (height, bs8) = FromBytes.int(bs7, 4)
+            val (relay, bs9) = if (bs8.nonEmpty) FromBytes.bool(bs8) else (false, bs8)
 
-      case "verack" =>
-        Verack
+            Version(version, services, timestamp, addrRecv, addrFrom, nonce, userAgent.string, height, relay)
 
-      case "ping" =>
-        Ping()
+          case "verack" =>
+            Verack
 
-      case "pong" =>
-        val (nonce,_) = FromBytes.long(rawMessage.payload)
-        Pong(nonce)
+          case "ping" =>
+            Ping()
 
-      case "addr" =>
-        val (count, bs1) = VariableLengthInt.fromBytes(rawMessage.payload)
+          case "pong" =>
+            val (nonce, _) = FromBytes.long(rawMessage.payload)
+            Pong(nonce)
 
-        var bs = bs1
-        var addrs = List[NetworkAddress]()
-        for(i <- 0L until count.value.toLong) {
-          val (addr, bs2) = NetworkAddress.fromBytes(bs)
-          addrs ::= addr
-          bs = bs2
+          case "addr" =>
+            val (count, bs1) = VariableLengthInt.fromBytes(rawMessage.payload)
+
+            var bs = bs1
+            var addrs = List[NetworkAddress]()
+            for (i <- BigInt(0) until count.value) {
+              val (addr, bs2) = NetworkAddress.fromBytes(bs)
+              addrs ::= addr
+              bs = bs2
+            }
+
+            Addr(count.value, addrs.reverse)
+
+          case "reject" =>
+            val (message, bs1) = VariableLengthString.fromBytes(rawMessage.payload)
+            val (ccode, bs2) = FromBytes.byte(bs1)
+            val (reason, bs3) = VariableLengthString.fromBytes(bs2)
+            val data = bs3
+
+            Reject(message.string, ccode, reason.string, data)
+
+          case command =>
+            Unsupported(command)
         }
-
-        Addr(count, addrs.reverse)
-
-      case command =>
-        Unsupported(command)
+        Right(message)
+      }
     }
+  }
 }
 
 
-case class Unsupported(msg : String) extends Message {
-  override val command = "Unsupported "+msg
-}
-
-
-case class Addr(count : VariableLengthInt, addrList : Seq[NetworkAddress]) extends Message {
+case class Addr(count : BigInt, addrList : Seq[NetworkAddress]) extends Message {
   override val command = "addr"
   override val payload = {
-    count.toBytes ++ addrList.flatMap(_.toBytes())
+    VariableLengthInt(count).toBytes ++ addrList.flatMap(_.toBytes())
   }
 }
 
@@ -144,4 +161,22 @@ case class Pong(nonce : Long) extends Message {
   override val payload = {
     ToBytes.fromLong(nonce, 8)
   }
+}
+
+
+case class Reject(message : String, ccode : Byte, reason : String, data : ByteString) extends Message {
+  override val command = "reject"
+  override val payload = {
+    VariableLengthString(message).toBytes ++
+    ToBytes.fromByte(ccode) ++
+    VariableLengthString(reason).toBytes ++
+    data
+  }
+}
+
+
+// These are not real BTC protocol messages. They are used for notifying parse errors
+
+case class Unsupported(msg : String) extends Message {
+  override val command = "Unsupported "+msg
 }
