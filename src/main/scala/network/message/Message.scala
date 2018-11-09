@@ -20,7 +20,7 @@ trait Message {
     val payloadLength = payload.length
 
     val checksum =
-      SHA256.doubleSha256(payload).take(4)
+      SHA256.doubleSha2564Bytes(payload)
 
     Header(BtcNode.magic, command, payloadLength, checksum)
   }
@@ -73,8 +73,8 @@ object Message {
 
         Addr(count, addrs.reverse)
 
-      case _ =>
-        Unsupported(rawMessage.header.command)
+      case command =>
+        Unsupported(command)
     }
 }
 

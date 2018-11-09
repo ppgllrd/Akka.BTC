@@ -37,25 +37,31 @@ case class BtcOutgoingConnection(btcNode: BtcNode, tcpConnection: TcpConnection)
       // complete handshake
       tcpConnection.conn ! Verack
 
-      // send our server address
-      val myAddress = InetAddress.getByAddress(versionIn.addrRecv.inetAddress.getAddress)
-      val myPort = BtcNode.tcpServerAddress.getPort
-      val myServices = BtcNode.services
-      tcpConnection.conn ! Addr(VariableLengthInt(1), List(NetworkAddress(UnixTime.now, myServices, myAddress, myPort)))
-
       context become {
-        case Ping(nonce) =>
-          tcpConnection.conn ! Pong(nonce)
+        case Verack =>
+          // handshake has been completed
 
-        case addr@Addr(count, addrList) =>
-          println("Got :"+addr)
-          for(networkAddress <- addrList)
-            btcNode.networkAddresses ! NetworkAddresses.Add(networkAddress)
+          // send our server address
+          val myAddress = InetAddress.getByAddress(versionIn.addrRecv.inetAddress.getAddress)
+          val myPort = BtcNode.tcpServerAddress.getPort
+          val myServices = BtcNode.services
+          tcpConnection.conn ! Addr(VariableLengthInt(1), List(NetworkAddress(UnixTime.now, myServices, myAddress, myPort)))
 
-        case other =>
-          println("Got :"+other)
+          // ask peer for known addresses
+          tcpConnection.conn ! Getaddr
+
+          context become {
+            case Ping(nonce) =>
+              tcpConnection.conn ! Pong(nonce)
+
+            case addr@Addr(count, addrList) =>
+              println("Got :" + addr)
+              for (networkAddress <- addrList)
+                btcNode.networkAddresses ! NetworkAddresses.Add(networkAddress)
+
+            case other =>
+              println("Got :" + other)
+          }
       }
-
-      tcpConnection.conn ! Getaddr
   }
 }

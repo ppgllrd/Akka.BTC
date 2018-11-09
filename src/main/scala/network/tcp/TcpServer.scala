@@ -24,7 +24,7 @@ case class TcpServer(btcNode : BtcNode) extends Actor {
   IO(Tcp) ! Tcp.Bind(self, BtcNode.tcpServerAddress)
 
   def receive = {
-    case b @ Bound(localAddress) =>
+    case Bound(localAddress) =>
       println(s"TcpServer listening on $localAddress")
 
     case CommandFailed(what: Bind) =>

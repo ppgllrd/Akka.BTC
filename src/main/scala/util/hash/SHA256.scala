@@ -41,4 +41,13 @@ object SHA256 {
 
     ByteString.fromArrayUnsafe(ys)
   }
+
+  def doubleSha2564Bytes(bs : ByteString) : ByteString = {
+    val sha256Digest = MessageDigest.getInstance("SHA-256")
+    sha256Digest.update(bs.asByteBuffer)
+    val xs = sha256Digest.digest()
+    val ys = sha256Digest.digest(xs)
+
+    ByteString.fromArrayUnsafe(ys, 0, 4)
+  }
 }

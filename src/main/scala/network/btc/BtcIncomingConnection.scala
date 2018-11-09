@@ -31,6 +31,7 @@ case class BtcIncomingConnection(btcNode: BtcNode, tcpConnection: TcpConnection)
         case Verack =>
           // complete handshake
           tcpConnection.conn ! Verack
+          // handshake has been completed
 
           // behaviour after handshake
           context become {
