@@ -16,4 +16,5 @@ object TcpConnection {
   case class SendBytes(bs : ByteString)
 }
 
-case class TcpConnection(conn : ActorRef, local : InetSocketAddress, remote: InetSocketAddress)
+case class TcpConnection(id : Int, self : ActorRef, local : InetSocketAddress, remote: InetSocketAddress)
+

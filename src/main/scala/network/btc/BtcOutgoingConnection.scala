@@ -30,12 +30,12 @@ case class BtcOutgoingConnection(btcNode: BtcNode, tcpConnection: TcpConnection)
       , Random.nonce
       , BtcNode.userAgent, 0, false
     )
-  tcpConnection.conn ! versionOut
+  tcpConnection.self ! versionOut
 
   def receive: Receive = {
     case versionIn: Version =>
       // complete handshake
-      tcpConnection.conn ! Verack
+      tcpConnection.self ! Verack
 
       context become {
         case Verack =>
@@ -45,15 +45,17 @@ case class BtcOutgoingConnection(btcNode: BtcNode, tcpConnection: TcpConnection)
           val myAddress = InetAddress.getByAddress(versionIn.addrRecv.inetAddress.getAddress)
           val myPort = BtcNode.tcpServerAddress.getPort
           val myServices = BtcNode.services
-          tcpConnection.conn ! Addr(1, List(NetworkAddress(UnixTime.now, myServices, myAddress, myPort)))
+          tcpConnection.self ! Addr(1, List(NetworkAddress(UnixTime.now, myServices, myAddress, myPort)))
 
           // ask peer for known addresses
-          tcpConnection.conn ! Getaddr
+          (1 to 10).foreach( _ =>
+            tcpConnection.self ! Getaddr
+          )
 
           context become {
             case ping@Ping(nonce) =>
               println(s"Got $ping")
-              tcpConnection.conn ! Pong(nonce)
+              tcpConnection.self ! Pong(nonce)
 
             case addr@Addr(count, addrList) =>
               println(s"Got $addr")

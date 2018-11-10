@@ -8,12 +8,12 @@
 package network.tcp
 
 import akka.actor.Actor.Receive
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorContext, ActorRef}
 import akka.io.Tcp.{PeerClosed, Received, Write}
 import akka.util.ByteString
 import network.message.{Message, RawMessage}
 
-case class TcpConnectionHandler(tcpConnectionActor: Actor, tcpManager: ActorRef, btcProtocolHandler: ActorRef) {
+case class TcpConnectionHandler(tcpConnection: TcpConnection, context : ActorContext, tcpManager : ActorRef, tcpConnectionManager : ActorRef, btcProtocolHandler: ActorRef) {
   protected var inputStream = ByteString()
 
   def receive: Receive = {
@@ -48,7 +48,8 @@ case class TcpConnectionHandler(tcpConnectionActor: Actor, tcpManager: ActorRef,
 
     case PeerClosed =>
       // will stop handler child too
-      tcpConnectionActor.context stop tcpConnectionActor.self
+      tcpConnectionManager ! TcpConnectionManager.Unregister(tcpConnection)
+      context stop tcpConnection.self
 
     case other =>
       // println(s"Received: $remote $other")

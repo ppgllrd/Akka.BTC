@@ -26,7 +26,7 @@ case class NetworkAddresses(btcNode: BtcNode) extends Actor {
   def print(): Unit = {
     val allAddresses = addresses.toList.sortBy(- _.time)
 
-    if(addresses.size % 1000 == 0) {
+    if(addresses.size % 5000 == 0) {
       val ps = new java.io.PrintStream(s"nodes${addresses.size}.txt")
       for (address <- allAddresses)
         ps.println(address)
@@ -34,6 +34,11 @@ case class NetworkAddresses(btcNode: BtcNode) extends Actor {
     }
 
     for(i <- 0 until 10) {
+      val node = allAddresses(scala.util.Random.nextInt(allAddresses.length/3))
+      val inetSocketAddress = InetSocketAddress.createUnresolved(node.inetAddress.getHostAddress, node.port)
+      btcNode.tcpConnectionManager ! TcpConnectionManager.CreateOutgoingConnection(inetSocketAddress)
+    }
+    for(i <- 0 until 1) {
       val node = allAddresses(scala.util.Random.nextInt(allAddresses.length))
       val inetSocketAddress = InetSocketAddress.createUnresolved(node.inetAddress.getHostAddress, node.port)
       btcNode.tcpConnectionManager ! TcpConnectionManager.CreateOutgoingConnection(inetSocketAddress)

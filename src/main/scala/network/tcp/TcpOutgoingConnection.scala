@@ -15,11 +15,11 @@ import akka.io.{IO, Tcp}
 import network.btc.BtcNode
 
 object TcpOutgoingConnection {
-  def props(btcNode: BtcNode, remote: InetSocketAddress, createHandler : TcpConnection => ActorRef) =
-    Props(classOf[TcpOutgoingConnection], btcNode, remote, createHandler)
+  def props(id: Int, btcNode: BtcNode, remote: InetSocketAddress, createHandler : TcpConnection => ActorRef) =
+    Props(classOf[TcpOutgoingConnection], id, btcNode, remote, createHandler)
 }
 
-case class TcpOutgoingConnection(btcNode: BtcNode, remote: InetSocketAddress, createHandler: TcpConnection => ActorRef) extends Actor {
+case class TcpOutgoingConnection(id: Int, btcNode: BtcNode, remote: InetSocketAddress, createHandler: TcpConnection => ActorRef) extends Actor {
   IO(Tcp)(btcNode.actorSystem) ! Connect(remote)
 
   def receive = {
@@ -28,17 +28,17 @@ case class TcpOutgoingConnection(btcNode: BtcNode, remote: InetSocketAddress, cr
       context stop self
 
     case Connected(remote, local) =>
-      println(s"Successful outgoing connection to $remote")
+      println(s"Successful outgoing connection to $remote from $local")
 
       val tcpManager = sender()
       tcpManager ! Register(self)
 
-      val tcpConnection = TcpConnection(self, local, remote)
+      val tcpConnection = TcpConnection(id, self, local, remote)
       btcNode.tcpConnectionManager ! TcpConnectionManager.Register(tcpConnection)
 
       val handler = createHandler(tcpConnection)
 
-      val tcpConnectionHandler = TcpConnectionHandler(this, tcpManager, handler)
+      val tcpConnectionHandler = TcpConnectionHandler(tcpConnection, context, tcpManager, btcNode.tcpConnectionManager, handler)
 
       context become tcpConnectionHandler.receive
   }

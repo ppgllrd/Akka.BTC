@@ -25,19 +25,19 @@ case class BtcIncomingConnection(btcNode: BtcNode, tcpConnection: TcpConnection)
         , NetworkAddress(0, BtcNode.services, tcpConnection.local)
         , Random.nonce, BtcNode.userAgent, 0, false
       )
-      tcpConnection.conn ! versionOut
+      tcpConnection.self ! versionOut
 
       context become {
         case Verack =>
           // complete handshake
-          tcpConnection.conn ! Verack
+          tcpConnection.self ! Verack
           // handshake has been completed
 
           // behaviour after handshake
           context become {
             case ping@Ping(nonce) =>
               println(s"Got $ping")
-              tcpConnection.conn ! Pong(nonce)
+              tcpConnection.self ! Pong(nonce)
 
             case addr@Addr(count, addrList) =>
               println(s"Got $addr")
