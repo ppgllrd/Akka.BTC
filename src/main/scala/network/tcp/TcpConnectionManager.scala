@@ -13,8 +13,6 @@ import akka.actor.{Actor, ActorRef, Props}
 import network.btc.{BtcIncomingConnection, BtcNode, BtcOutgoingConnection}
 import network.tcp.TcpConnectionManager.{CreateIncomingConnection, CreateOutgoingConnection, Register, Unregister}
 
-import scala.collection.mutable.ArrayBuffer
-
 object TcpConnectionManager {
   def props(btcNode: BtcNode) =
     Props(classOf[TcpConnectionManager], btcNode)
@@ -30,6 +28,7 @@ object TcpConnectionManager {
 
 case class TcpConnectionManager(btcNode: BtcNode) extends Actor {
   private val actorSystem = btcNode.actorSystem
+  private val log = btcNode.log
 
   private val openedTcpConnections = scala.collection.mutable.Set[TcpConnection]()
   private var nextTcpId = 0

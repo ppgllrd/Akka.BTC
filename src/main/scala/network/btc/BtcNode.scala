@@ -10,6 +10,7 @@ package network.btc
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorSystem, Props}
+import akka.event.{Logging, LoggingAdapter}
 import network.message.{Magic, Services}
 import network.tcp.{TcpConnectionManager, TcpServer}
 
@@ -22,7 +23,7 @@ object BtcNode {
   val tcpServerAddress = new InetSocketAddress("127.0.0.1", 8333)
 }
 
-case class BtcNode(actorSystem: ActorSystem) {
+case class BtcNode(actorSystem: ActorSystem, log : LoggingAdapter) {
   val tcpConnectionManager = actorSystem.actorOf(TcpConnectionManager.props(this))
   val tcpServer = actorSystem.actorOf(TcpServer.props(this))
   val networkAddresses = actorSystem.actorOf(NetworkAddresses.props(this))
@@ -34,7 +35,8 @@ object BtcNodeActor {
 }
 
 case class BtcNodeActor(actorSystem: ActorSystem) extends Actor {
-  val btcNode = BtcNode(actorSystem)
+  val log = Logging(context.system, this)
+  val btcNode = BtcNode(actorSystem, log)
 
   val remote1 = new InetSocketAddress("54.36.61.219", 8333)
   val remote2 = new InetSocketAddress("82.74.137.168", 8333)

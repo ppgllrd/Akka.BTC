@@ -20,17 +20,18 @@ object TcpIncomingConnection {
 }
 
 case class TcpIncomingConnection(id : Int, btcNode: BtcNode, local: InetSocketAddress, remote: InetSocketAddress, createHandler: TcpConnection => ActorRef, tcpManager: ActorRef) extends Actor {
+  private val log = btcNode.log
   IO(Tcp)(btcNode.actorSystem) ! Connect(remote)
 
-  println(s"Successful incoming connection from $remote")
+  log.info(s"Successful incoming connection from $remote")
   tcpManager ! Register(self)
 
-  val tcpConnection = TcpConnection(id, self, local, remote)
+  private val tcpConnection = TcpConnection(id, self, local, remote)
   btcNode.tcpConnectionManager ! TcpConnectionManager.Register(tcpConnection)
 
-  val handler = createHandler(tcpConnection)
+  private val handler = createHandler(tcpConnection)
 
-  val tcpConnectionHandler = TcpConnectionHandler(tcpConnection, context, tcpManager, btcNode.tcpConnectionManager, handler)
+  private val tcpConnectionHandler = TcpConnectionHandler(tcpConnection, btcNode, context, tcpManager, handler)
 
   def receive: Receive =
     tcpConnectionHandler.receive

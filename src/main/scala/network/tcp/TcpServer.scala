@@ -20,19 +20,20 @@ object TcpServer {
 case class TcpServer(btcNode : BtcNode) extends Actor {
   import context.system
   private val tcpConnectionManager = btcNode.tcpConnectionManager
+  private val log = btcNode.log
 
   IO(Tcp) ! Tcp.Bind(self, BtcNode.tcpServerAddress)
 
   def receive = {
     case Bound(localAddress) =>
-      println(s"TcpServer listening on $localAddress")
+      log.info(s"TcpServer listening on $localAddress")
 
     case cf@CommandFailed(what: Bind) =>
-      println(s"TcpServer failed $cf")
+      log.info(s"TcpServer failed $cf")
       context stop self
 
     case Tcp.Connected(remote, local) =>
-      println(s"New incoming connection from $remote")
+      log.info(s"New incoming connection from $remote")
       val tcpManager = sender()
       tcpConnectionManager ! TcpConnectionManager.CreateIncomingConnection(local, remote, tcpManager)
   }

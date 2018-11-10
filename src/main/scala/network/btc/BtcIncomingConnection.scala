@@ -17,6 +17,8 @@ object BtcIncomingConnection {
     Props(classOf[BtcIncomingConnection], btcNode, tcpConnection)
 }
 case class BtcIncomingConnection(btcNode: BtcNode, tcpConnection: TcpConnection) extends Actor {
+  private val log = btcNode.log
+
   def receive: Receive = {
     case versionIn: Version =>
       // start handshake
@@ -36,19 +38,19 @@ case class BtcIncomingConnection(btcNode: BtcNode, tcpConnection: TcpConnection)
           // behaviour after handshake
           context become {
             case ping@Ping(nonce) =>
-              println(s"Got $ping")
+              log.info(s"Got $ping")
               tcpConnection.self ! Pong(nonce)
 
             case addr@Addr(count, addrList) =>
-              println(s"Got $addr")
+              log.info(s"Got $addr")
               for(networkAddress <- addrList)
                 btcNode.networkAddresses ! NetworkAddresses.Add(networkAddress)
 
             case Malformed(rawMessage, ccode) =>
-              println(s"Got a malformed message: $ccode")
+              log.info(s"Got a malformed message: $ccode")
 
             case other =>
-              println(s"Got $other")
+              log.info(s"Got $other")
           }
       }
   }

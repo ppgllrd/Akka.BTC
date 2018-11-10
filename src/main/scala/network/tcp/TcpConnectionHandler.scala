@@ -8,13 +8,15 @@
 package network.tcp
 
 import akka.actor.Actor.Receive
-import akka.actor.{Actor, ActorContext, ActorRef}
+import akka.actor.{ActorContext, ActorRef}
 import akka.io.Tcp.{PeerClosed, Received, Write}
 import akka.util.ByteString
+import network.btc.BtcNode
 import network.message.{Message, RawMessage}
 
-case class TcpConnectionHandler(tcpConnection: TcpConnection, context : ActorContext, tcpManager : ActorRef, tcpConnectionManager : ActorRef, btcProtocolHandler: ActorRef) {
+case class TcpConnectionHandler(tcpConnection: TcpConnection, btcNode: BtcNode, context : ActorContext, tcpManager : ActorRef, btcProtocolHandler: ActorRef) {
   protected var inputStream = ByteString()
+  private val log = btcNode.log
 
   def receive: Receive = {
     case Received(data) =>
@@ -28,10 +30,10 @@ case class TcpConnectionHandler(tcpConnection: TcpConnection, context : ActorCon
           case Some((rawMessage, remainingInputStream)) =>
             Message.fromRawMessage(rawMessage) match {
               case Left(malformed) =>
-                // println(s"Received malformed: $remote $malformed")
+                log.info(s"Received malformed: ${tcpConnection.remote} $malformed")
                 btcProtocolHandler ! malformed
               case Right(message) =>
-                // println(s"Received: $remote $message")
+                log.info(s"Received: ${tcpConnection.remote} $message")
                 btcProtocolHandler ! message
             }
             inputStream = remainingInputStream
@@ -39,20 +41,20 @@ case class TcpConnectionHandler(tcpConnection: TcpConnection, context : ActorCon
       }
 
     case message : Message =>
-      //println(s"Sending:  $remote $message")
+      log.info(s"Sending: ${tcpConnection.remote} $message")
       tcpManager ! Write(message.toBytes)
 
     case TcpConnection.SendBytes(bs) =>
-      //println(s"Sending:  $remote $bs")
+      log.info(s"Sending: ${tcpConnection.remote} $bs")
       tcpManager ! Write(bs)
 
     case PeerClosed =>
+      log.info(s"PeerClosed: ${tcpConnection.remote}")
       // will stop handler child too
-      tcpConnectionManager ! TcpConnectionManager.Unregister(tcpConnection)
+      btcNode.tcpConnectionManager ! TcpConnectionManager.Unregister(tcpConnection)
       context stop tcpConnection.self
 
     case other =>
-      // println(s"Received: $remote $other")
-      ;
+      log.info(s"Received: ${tcpConnection.remote} $other")
   }
 }

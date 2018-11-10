@@ -9,7 +9,7 @@ package network.tcp
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, Kill, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import network.btc.BtcNode
@@ -20,15 +20,16 @@ object TcpOutgoingConnection {
 }
 
 case class TcpOutgoingConnection(id: Int, btcNode: BtcNode, remote: InetSocketAddress, createHandler: TcpConnection => ActorRef) extends Actor {
+  private val log = btcNode.log
   IO(Tcp)(btcNode.actorSystem) ! Connect(remote)
 
   def receive = {
     case CommandFailed(command: Tcp.Command) =>
-      println(s"Failed to connect to $remote $command")
+      log.info(s"Failed to connect to $remote $command")
       context stop self
 
     case Connected(remote, local) =>
-      println(s"Successful outgoing connection to $remote from $local")
+      log.info(s"Successful outgoing connection to $remote from $local")
 
       val tcpManager = sender()
       tcpManager ! Register(self)
@@ -38,7 +39,7 @@ case class TcpOutgoingConnection(id: Int, btcNode: BtcNode, remote: InetSocketAd
 
       val handler = createHandler(tcpConnection)
 
-      val tcpConnectionHandler = TcpConnectionHandler(tcpConnection, context, tcpManager, btcNode.tcpConnectionManager, handler)
+      val tcpConnectionHandler = TcpConnectionHandler(tcpConnection, btcNode, context, tcpManager, handler)
 
       context become tcpConnectionHandler.receive
   }

@@ -20,7 +20,8 @@ object BtcOutgoingConnection {
 }
 
 case class BtcOutgoingConnection(btcNode: BtcNode, tcpConnection: TcpConnection) extends Actor {
-  val actorSystem = btcNode.actorSystem
+  private val actorSystem = btcNode.actorSystem
+  private val log = btcNode.log
 
   // start handshake
   private val versionOut =
@@ -48,25 +49,23 @@ case class BtcOutgoingConnection(btcNode: BtcNode, tcpConnection: TcpConnection)
           tcpConnection.self ! Addr(1, List(NetworkAddress(UnixTime.now, myServices, myAddress, myPort)))
 
           // ask peer for known addresses
-          (1 to 10).foreach( _ =>
-            tcpConnection.self ! Getaddr
-          )
+          tcpConnection.self ! Getaddr
 
           context become {
             case ping@Ping(nonce) =>
-              println(s"Got $ping")
+              log.info(s"Got $ping")
               tcpConnection.self ! Pong(nonce)
 
             case addr@Addr(count, addrList) =>
-              println(s"Got $addr")
+              log.info(s"Got $addr")
               for (networkAddress <- addrList)
                 btcNode.networkAddresses ! NetworkAddresses.Add(networkAddress)
 
             case Malformed(rawMessage, ccode) =>
-              println(s"Got a malformed message: $ccode")
+              log.info(s"Got a malformed message: $ccode")
 
             case other =>
-              println(s"Got $other")
+              log.info(s"Got $other")
           }
       }
   }
