@@ -9,6 +9,7 @@ package network.message
 
 import bytes._
 import network.btc.BtcNode
+import util.monad.StateTransformer
 
 
 object Header {
@@ -23,27 +24,28 @@ object Header {
 
   private val magicBytes = ToBytes.fromInt(BtcNode.magic, Length.magic)
 
-  def fromBytesOpt(bs : ByteString) : Option[(Header, ByteString)] = {
+  def fromBytesOpt : M[Option[Header]] = M{ bs =>
     val i = bs.indexOfSlice(magicBytes)
 
     if (i < 0)
-      None
+      (bs, None)
     else {
       val bs1 = bs.drop(i)
       if(i>0)
         println(s"Dropped $i bytes") //todo use log and pass this information somehow to BtcConnection
 
       if (bs1.length < headerLength)
-        None
+        (bs, None)
       else {
-        val (magic, bs2) = FromBytes.int(bs1, Length.magic)
-        val (commandBytes, bs3) = bs2.splitAt(Length.command)
-        val command = commandBytes.decodeString(java.nio.charset.StandardCharsets.US_ASCII).takeWhile(_ != 0)
-        val (payloadLength, bs4) = FromBytes.long(bs3, Length.length)
-        val (checksum, bs5) = bs4.splitAt(Length.checksum)
+        val headerM = for(
+          magic <- FromBytes.int(Length.magic);
+          commandBytes <- FromBytes.take(Length.command);
+          command = commandBytes.decodeString(java.nio.charset.StandardCharsets.US_ASCII);
+          payloadLength <- FromBytes.long(Length.length);
+          checksum <- FromBytes.take(Length.checksum)
+        ) yield Some(Header(magic, command, payloadLength, checksum))
 
-        val header = Header(magic, command, payloadLength, checksum)
-        Some((header, bs5))
+        headerM(bs)
       }
     }
   }

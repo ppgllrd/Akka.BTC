@@ -67,7 +67,7 @@ object Message {
             Ping()
 
           case "pong" =>
-            val (nonce, _) = FromBytes.long(rawMessage.payload)
+            val nonce = FromBytes.long().run(rawMessage.payload)
             Pong(nonce)
 
           case "addr" =>

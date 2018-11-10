@@ -7,6 +7,8 @@
 
 package bytes
 
+import util.monad.StateTransformer
+
 object FromBytes {
   private def bytesToBigInt(bs : ByteString) : BigInt = {
     var x = BigInt(0)
@@ -18,30 +20,35 @@ object FromBytes {
   }
 
   object LittleEndian {
-    def int(bs : ByteString, nBytes : Int = 4) : (Int, ByteString) = {
+    def int(nBytes : Int = 4) : M[Int] = M{ bs =>
       val (bs1, bs2) = bs.splitAt(nBytes)
       val int = bytesToBigInt(bs1).toInt
-      (int, bs2)
+      (bs2, int)
     }
   }
 
   // All of these use Big Endian encoding
-  def long(bs : ByteString, nBytes : Int = 8) : (Long, ByteString) = {
+  def long(nBytes : Int = 8) : M[Long] = M{ bs =>
     val (bs1, bs2) = bs.splitAt(nBytes)
     val long = bytesToBigInt(bs1.reverse).toLong
-    (long, bs2)
+    (bs2, long)
   }
 
-  def int(bs : ByteString, nBytes : Int = 4) : (Int, ByteString) = {
+  def int(nBytes : Int = 4) : M[Int] = M{ bs =>
     val (bs1, bs2) = bs.splitAt(nBytes)
     val int = bytesToBigInt(bs1.reverse).toInt
-    (int, bs2)
+    (bs2, int)
   }
 
-  def byte(bs : ByteString) : (Byte, ByteString) = {
-    (bs.head, bs.tail)
+  def byte : M[Byte] = M{ bs =>
+    (bs.tail, bs.head)
   }
 
-  def bool(bs : ByteString) : (Boolean, ByteString) =
-    (bs(0)==1, bs.tail)
+  def bool : M[Boolean] = M{ bs =>
+    (bs.tail, bs(0) == 1)
+  }
+
+  def take(n : Int) : M[ByteString] = M{ bs =>
+    bs.splitAt(n)
+  }
 }
