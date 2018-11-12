@@ -10,26 +10,25 @@ package network.message
 import bytes._
 
 object VariableLengthInt {
-  def fromBytes(bs : ByteString) : (VariableLengthInt, ByteString) = {
-    val prefix : Int = bs(0) & 0xFF
-
-    val (prefixLength, nBytes) =
-      if (prefix < 0xFD)
-        (0, 1)
-      else if (prefix == 0xFD)
-        (1, 2)
-      else if (prefix == 0xFE)
-        (1, 4)
-      else if (prefix == 0xFF)
-        (1, 8)
-      else
-        sys.error("VariableLengthInt.fromBytes")
-
-    val (bs1, bs2) = bs.drop(prefixLength).splitAt(nBytes)
-
-    val bigInt = BigInt(bs1.reverse.toArray)
-    (VariableLengthInt(bigInt), bs2)
-  }
+  def parser : Parser[VariableLengthInt] =
+    for {
+      byte <- Parser.byte
+      mask : Int = byte & 0xFF
+      (prepend, nBytes) =
+        if (mask < 0xFD)
+          (true, 0)
+        else if (mask == 0xFD)
+          (false, 2)
+        else if (mask == 0xFE)
+          (false, 4)
+        else if (mask == 0xFF)
+          (false, 8)
+        else
+          sys.error("VariableLengthInt.fromBytes")
+      bs1 <- Parser.take(nBytes)
+      bs2 = if (prepend) byte +: bs1 else bs1
+      bigInt = BigInt(bs2.reverse.toArray)
+    } yield VariableLengthInt(bigInt)
 }
 
 case class VariableLengthInt(value : BigInt) {

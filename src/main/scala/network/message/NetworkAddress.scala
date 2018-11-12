@@ -13,33 +13,23 @@ import bytes._
 import util.UnixTime
 
 object NetworkAddress {
-  def apply(time : Long, services : Long, inetSocketAddress : InetSocketAddress) : NetworkAddress =
+  def apply(time: Long, services: Long, inetSocketAddress: InetSocketAddress): NetworkAddress =
     NetworkAddress(time, services, InetAddress.getByAddress(inetSocketAddress.getAddress.getAddress), inetSocketAddress.getPort)
 
-  val ip4prefix : ByteString = ByteString.fromArrayUnsafe(Array.fill[Byte](10)(0) ++ Array.fill[Byte](2)(0xFF.toByte))
+  val ip4prefix: ByteString = ByteString.fromArrayUnsafe(Array.fill[Byte](10)(0) ++ Array.fill[Byte](2)(0xFF.toByte))
 
-  def fromBytes(bs : ByteString, includeTime : Boolean = true) : (NetworkAddress, ByteString) = {
-    val (time, bs1) =
-      if(includeTime) {
-        FromBytes.long(bs, 4)
-      } else
-        (0L, bs)
-
-    val (services, bs2) = FromBytes.long(bs1)
-
-    val (inetAddressBytes, bs3) = bs2.splitAt(16)
-
-    val inetAddress =
-      if(inetAddressBytes.startsWith(ip4prefix))
-        InetAddress.getByAddress(inetAddressBytes.drop(ip4prefix.length).toArray)
-      else
-        InetAddress.getByAddress(inetAddressBytes.toArray)
-
-    val (port, bs4) = FromBytes.LittleEndian.int(bs3, 2)
-
-    val networkAddr = NetworkAddress(time, services, inetAddress, port)
-    (networkAddr, bs4)
-  }
+  def parser(includeTime: Boolean = true) : Parser[NetworkAddress] =
+    for {
+      time <- if (includeTime) Parser.long(4) else Parser.pure(0L)
+      services <- Parser.long(8)
+      inetAddressBytes <- Parser.take(16)
+      inetAddress =
+        if (inetAddressBytes.startsWith(ip4prefix))
+          InetAddress.getByAddress(inetAddressBytes.drop(ip4prefix.length).toArray)
+        else
+          InetAddress.getByAddress(inetAddressBytes.toArray)
+      port <- Parser.LittleEndian.int(2)
+    } yield NetworkAddress(time, services, inetAddress, port)
 }
 
 

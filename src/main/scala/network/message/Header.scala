@@ -9,7 +9,6 @@ package network.message
 
 import bytes._
 import network.btc.BtcNode
-import util.monad.StateTransformer
 
 
 object Header {
@@ -24,7 +23,7 @@ object Header {
 
   private val magicBytes = ToBytes.fromInt(BtcNode.magic, Length.magic)
 
-  def fromBytesOpt : M[Option[Header]] = M{ bs =>
+  def parserOpt : Parser[Option[Header]] = Parser{ bs =>
     val i = bs.indexOfSlice(magicBytes)
 
     if (i < 0)
@@ -37,15 +36,15 @@ object Header {
       if (bs1.length < headerLength)
         (bs, None)
       else {
-        val headerM = for(
-          magic <- FromBytes.int(Length.magic);
-          commandBytes <- FromBytes.take(Length.command);
-          command = commandBytes.decodeString(java.nio.charset.StandardCharsets.US_ASCII);
-          payloadLength <- FromBytes.long(Length.length);
-          checksum <- FromBytes.take(Length.checksum)
-        ) yield Some(Header(magic, command, payloadLength, checksum))
+        val headerParser = for {
+          magic <- Parser.int(Length.magic)
+          commandBytes <- Parser.take(Length.command)
+          command = commandBytes.decodeString(java.nio.charset.StandardCharsets.US_ASCII)
+          payloadLength <- Parser.long(Length.length)
+          checksum <- Parser.take(Length.checksum)
+        } yield Some(Header(magic, command, payloadLength, checksum))
 
-        headerM(bs)
+        headerParser(bs)
       }
     }
   }

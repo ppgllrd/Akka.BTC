@@ -24,10 +24,10 @@ case class TcpConnectionHandler(tcpConnection: TcpConnection, btcNode: BtcNode, 
 
       var moreMessages = true
       while (moreMessages) {
-        RawMessage.fromBytesOpt(inputStream) match {
-          case None =>
+        RawMessage.parserOpt(inputStream) match {
+          case (_, None) =>
             moreMessages = false
-          case Some((rawMessage, remainingInputStream)) =>
+          case (remainingInputStream, Some(rawMessage)) =>
             Message.fromRawMessage(rawMessage) match {
               case Left(malformed) =>
                 log.info(s"Received malformed: ${tcpConnection.remote} $malformed")

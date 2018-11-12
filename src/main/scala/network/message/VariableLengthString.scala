@@ -10,13 +10,12 @@ package network.message
 import bytes._
 
 object VariableLengthString {
-  def fromBytes(bs : ByteString) : (VariableLengthString, ByteString) = {
-    val (length, bs1) = VariableLengthInt.fromBytes(bs)
-    val (bs2, bs3) = bs1.splitAt(length.value.toInt)
-    val string = bs2.decodeString(java.nio.charset.StandardCharsets.US_ASCII)
-
-    (VariableLengthString(string), bs3)
-  }
+  def parser : Parser[VariableLengthString] =
+    for {
+      length <- VariableLengthInt.parser
+      bs <- Parser.take(length.value.toInt)
+      string = bs.decodeString(java.nio.charset.StandardCharsets.US_ASCII)
+    } yield VariableLengthString(string)
 }
 
 

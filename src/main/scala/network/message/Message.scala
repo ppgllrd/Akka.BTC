@@ -34,8 +34,7 @@ trait Message {
 
 
 object Message {
-  def fromRawMessage(rawMessage : RawMessage) : Either[Malformed,Message] = {
-
+  def fromRawMessage(rawMessage : RawMessage) : Either[Malformed,Message] =
     // verify checksum
     if (rawMessage.header.checksum != SHA256.doubleSha2564Bytes(rawMessage.payload))
       Left(Malformed(rawMessage, CCodes.REJECT_MALFORMED))
@@ -45,59 +44,56 @@ object Message {
       if (remaining.exists(_ != 0))
         Left(Malformed(rawMessage, CCodes.REJECT_MALFORMED))
       else {
-        val message = command match {
+        val messageParser = command match {
           case "version" =>
-            // todo I see state transformer monads all around me
-            val (version, bs1) = FromBytes.int(rawMessage.payload, 4)
-            val (services, bs2) = FromBytes.long(bs1, 8)
-            val (timestamp, bs3) = FromBytes.long(bs2, 8)
-            val (addrRecv, bs4) = NetworkAddress.fromBytes(bs3, false)
-            val (addrFrom, bs5) = NetworkAddress.fromBytes(bs4, false)
-            val (nonce, bs6) = FromBytes.long(bs5, 8)
-            val (userAgent, bs7) = VariableLengthString.fromBytes(bs6)
-            val (height, bs8) = FromBytes.int(bs7, 4)
-            val (relay, bs9) = if (bs8.nonEmpty) FromBytes.bool(bs8) else (false, bs8)
-
-            Version(version, services, timestamp, addrRecv, addrFrom, nonce, userAgent.string, height, relay)
+            for {
+              version <- Parser.int(4)
+              services <- Parser.long(8)
+              timestamp <- Parser.long(8)
+              addrRecv <- NetworkAddress.parser(false)
+              addrFrom <- NetworkAddress.parser(false)
+              nonce <- Parser.long(8)
+              userAgent <- VariableLengthString.parser
+              height <- Parser.int(4)
+              bs <- Parser.input
+              relay <- if (bs.isEmpty) Parser.pure(false) else Parser.bool
+            } yield Version(version, services, timestamp, addrRecv, addrFrom, nonce, userAgent.string, height, relay)
 
           case "verack" =>
-            Verack
+            Parser.pure(Verack)
 
           case "ping" =>
-            Ping()
+            for {
+              nonce <- Parser.long()
+            } yield Ping(nonce)
 
           case "pong" =>
-            val nonce = FromBytes.long().run(rawMessage.payload)
-            Pong(nonce)
+            for {
+              nonce <- Parser.long()
+            } yield Pong(nonce)
 
           case "addr" =>
-            val (count, bs1) = VariableLengthInt.fromBytes(rawMessage.payload)
-
-            var bs = bs1
-            var addrs = List[NetworkAddress]()
-            for (i <- BigInt(0) until count.value) {
-              val (addr, bs2) = NetworkAddress.fromBytes(bs)
-              addrs ::= addr
-              bs = bs2
-            }
-
-            Addr(count.value, addrs.reverse)
+            for {
+              count <- VariableLengthInt.parser
+              addrs <- NetworkAddress.parser().repeat(count.value.toInt)
+            } yield Addr(count.value, addrs)
 
           case "reject" =>
-            val (message, bs1) = VariableLengthString.fromBytes(rawMessage.payload)
-            val (ccode, bs2) = FromBytes.byte(bs1)
-            val (reason, bs3) = VariableLengthString.fromBytes(bs2)
-            val data = bs3
-
-            Reject(message.string, ccode, reason.string, data)
+            for {
+              message <- VariableLengthString.parser
+              ccode <- Parser.byte
+              reason <- VariableLengthString.parser
+              data <- Parser.input
+            } yield Reject(message.string, ccode, reason.string, data)
 
           case command =>
-            Unsupported(command)
+            Parser.pure(Unsupported(command))
         }
+        val message = messageParser.runOn(rawMessage.payload)
         Right(message)
       }
     }
-  }
+
 }
 
 

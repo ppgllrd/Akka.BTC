@@ -17,7 +17,7 @@ import network.tcp.{TcpConnectionManager, TcpServer}
 object BtcNode {
   val magic : Int = Magic.mainnet
   val services : Long = Services.NODE_NETWORK
-  val version : Int = 70005
+  val version : Int = 70015
   val userAgent = "ScalaBTC:0.0.1"
 
   val tcpServerAddress = new InetSocketAddress("127.0.0.1", 8333)

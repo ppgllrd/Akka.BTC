@@ -1,5 +1,3 @@
-import util.monad.StateTransformer
-
 /******************************************************************************
   * BTC-akka
   *
@@ -12,10 +10,5 @@ package object bytes {
 
   val ByteString = akka.util.ByteString
 
-  type M[A] = StateTransformer[ByteString, A]
-
-  object M {
-    def apply[A](fst : ByteString => (ByteString, A)) =
-      StateTransformer(fst)
-  }
+  type Parser[A] = Parser.Parser[A]
 }

@@ -10,21 +10,21 @@ package network.message
 import bytes._
 
 object RawMessage {
-  def fromBytesOpt(bs : ByteString) : Option[(RawMessage, ByteString)] = {
-    Header.fromBytesOpt(bs) match {
+  def parserOpt: Parser[Option[RawMessage]] =
+    Header.parserOpt.flatMap {
       case None =>
-        None
-      case Some((header, bs1)) =>
-        if(bs1.length < header.payloadLength)
-          None
-        else {
-          val (payload, bs2) = bs1.splitAt(header.payloadLength.toInt)
-          val msg = RawMessage(header, payload)
-
-          Some((msg, bs2))
+        Parser.pure(None)
+      case Some(header) =>
+        Parser.input.flatMap { bs =>
+          if (bs.length < header.payloadLength)
+            Parser.pure(None)
+          else
+            for {
+              payload <- Parser.take(header.payloadLength.toInt)
+              rawMsg = RawMessage(header, payload)
+            } yield Some(rawMsg)
         }
     }
-  }
 }
 
 
