@@ -7,18 +7,20 @@
 
 package network.tcp
 
-import akka.actor.Actor.Receive
-import akka.actor.{ActorContext, ActorRef}
+import akka.actor.{Actor, ActorRef}
+import akka.event.LoggingAdapter
 import akka.io.Tcp.{PeerClosed, Received, Write}
 import akka.util.ByteString
 import network.btc.BtcNode
 import network.message.{Message, RawMessage}
 
-case class TcpConnectionHandler(tcpConnection: TcpConnection, btcNode: BtcNode, context : ActorContext, tcpManager : ActorRef, btcProtocolHandler: ActorRef) {
-  protected var inputStream = ByteString()
-  private val log = btcNode.log
+trait TcpConnectionHandler extends Actor {
+  val btcNode: BtcNode
+  protected val log : LoggingAdapter
 
-  def receive: Receive = {
+  private var inputStream = ByteString()
+
+  def receive(tcpConnection: TcpConnection, tcpManager: ActorRef, subscriber: ActorRef): Receive = {
     case Received(data) =>
       inputStream = inputStream ++ data
 
@@ -31,10 +33,10 @@ case class TcpConnectionHandler(tcpConnection: TcpConnection, btcNode: BtcNode, 
             Message.fromRawMessage(rawMessage) match {
               case Left(malformed) =>
                 log.info(s"Received malformed: ${tcpConnection.remote} $malformed")
-                btcProtocolHandler ! malformed
+                subscriber ! malformed
               case Right(message) =>
                 log.info(s"Received: ${tcpConnection.remote} $message")
-                btcProtocolHandler ! message
+                subscriber ! message
             }
             inputStream = remainingInputStream
         }

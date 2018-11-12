@@ -9,18 +9,18 @@ package network.tcp
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{ActorRef, Props}
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import network.btc.BtcNode
 
 object TcpOutgoingConnection {
-  def props(id: Int, btcNode: BtcNode, remote: InetSocketAddress, createHandler : TcpConnection => ActorRef) =
-    Props(classOf[TcpOutgoingConnection], id, btcNode, remote, createHandler)
+  def props(id: Int, btcNode: BtcNode, remote: InetSocketAddress, createSubscriber : TcpConnection => ActorRef) =
+    Props(classOf[TcpOutgoingConnection], id, btcNode, remote, createSubscriber)
 }
 
-case class TcpOutgoingConnection(id: Int, btcNode: BtcNode, remote: InetSocketAddress, createHandler: TcpConnection => ActorRef) extends Actor {
-  private val log = btcNode.log
+case class TcpOutgoingConnection(id: Int, btcNode: BtcNode, remote: InetSocketAddress, createSubscriber: TcpConnection => ActorRef) extends TcpConnectionHandler {
+  protected val log = btcNode.log
   IO(Tcp)(btcNode.actorSystem) ! Connect(remote)
 
   def receive = {
@@ -37,11 +37,9 @@ case class TcpOutgoingConnection(id: Int, btcNode: BtcNode, remote: InetSocketAd
       val tcpConnection = TcpConnection(id, self, local, remote)
       btcNode.tcpConnectionManager ! TcpConnectionManager.Register(tcpConnection)
 
-      val handler = createHandler(tcpConnection)
+      val subscriber = createSubscriber(tcpConnection)
 
-      val tcpConnectionHandler = TcpConnectionHandler(tcpConnection, btcNode, context, tcpManager, handler)
-
-      context become tcpConnectionHandler.receive
+      context become super.receive(tcpConnection, tcpManager, subscriber)
   }
 }
 
