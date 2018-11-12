@@ -28,14 +28,12 @@ object TcpConnectionManager {
 
 case class TcpConnectionManager(btcNode: BtcNode) extends Actor {
   private val actorSystem = btcNode.actorSystem
-  private val log = btcNode.log
 
   private val openedTcpConnections = scala.collection.mutable.Set[TcpConnection]()
   private var nextTcpId = 0
 
   private def isOpened(remote : InetSocketAddress) : Boolean =
     openedTcpConnections.map(_.remote).contains(remote)
-
 
   def receive: Receive = {
     case Register(tcpConnection) =>
@@ -46,19 +44,18 @@ case class TcpConnectionManager(btcNode: BtcNode) extends Actor {
 
     case CreateOutgoingConnection(remote) =>
       if(!isOpened(remote)) {
-        def newHandler(tcpConnection: TcpConnection) =
+        def newSubscriber(tcpConnection: TcpConnection) =
           actorSystem.actorOf(BtcOutgoingConnection.props(btcNode, tcpConnection))
 
-        actorSystem.actorOf(TcpOutgoingConnection.props(nextTcpId, btcNode, remote, newHandler))
+        actorSystem.actorOf(TcpOutgoingConnection.props(nextTcpId, btcNode, remote, newSubscriber))
         nextTcpId += 1
       }
-      println(openedTcpConnections.size)
 
     case CreateIncomingConnection(local, remote, tcpManager) =>
-      def newHandler(tcpConnection : TcpConnection) =
+      def newSubscriber(tcpConnection : TcpConnection) =
         actorSystem.actorOf(BtcIncomingConnection.props(btcNode, tcpConnection))
 
-      actorSystem.actorOf(TcpIncomingConnection.props(nextTcpId, btcNode, local, remote, newHandler, tcpManager))
+      actorSystem.actorOf(TcpIncomingConnection.props(nextTcpId, btcNode, local, remote, newSubscriber, tcpManager))
       nextTcpId += 1
   }
 }
