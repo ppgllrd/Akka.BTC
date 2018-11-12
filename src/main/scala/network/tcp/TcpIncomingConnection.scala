@@ -27,7 +27,7 @@ case class TcpIncomingConnection(id : Int, btcNode: BtcNode, local: InetSocketAd
   tcpManager ! Register(self)
 
   private val tcpConnection = TcpConnection(id, self, local, remote)
-  btcNode.tcpConnectionManager ! TcpConnectionManager.Register(tcpConnection)
+  btcNode.tcpConnectionManager ! TcpConnectionManager.Opened(tcpConnection)
 
   private val subscriber = createSubscriber(tcpConnection)
 

@@ -53,7 +53,7 @@ trait TcpConnectionHandler extends Actor {
     case PeerClosed =>
       log.info(s"PeerClosed: ${tcpConnection.remote}")
       // will stop handler child too
-      btcNode.tcpConnectionManager ! TcpConnectionManager.Unregister(tcpConnection)
+      btcNode.tcpConnectionManager ! TcpConnectionManager.Closed(tcpConnection)
       context stop tcpConnection.self
 
     case other =>

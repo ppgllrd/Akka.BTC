@@ -10,6 +10,7 @@ package network.btc
 import java.net.InetAddress
 
 import akka.actor.{Actor, Props}
+import network.btc.NetworkAddresses.ConnectedTo
 import network.message._
 import network.tcp.TcpConnection
 import util.{Random, UnixTime}
@@ -42,6 +43,10 @@ case class BtcOutgoingConnection(btcNode: BtcNode, tcpConnection: TcpConnection)
         case Verack =>
           // handshake has been completed
 
+          // record this connection
+          val connectedTo = versionIn.copy(addrFrom = NetworkAddress(versionIn.addrFrom.time, versionIn.services, tcpConnection.remote.getAddress, tcpConnection.remote.getPort))
+          btcNode.networkAddresses ! ConnectedTo(connectedTo)
+
           // send our server address
           val myAddress = InetAddress.getByAddress(versionIn.addrRecv.inetAddress.getAddress)
           val myPort = BtcNode.tcpServerAddress.getPort
@@ -59,7 +64,7 @@ case class BtcOutgoingConnection(btcNode: BtcNode, tcpConnection: TcpConnection)
             case addr@Addr(count, addrList) =>
               log.info(s"Got $addr")
               for (networkAddress <- addrList)
-                btcNode.networkAddresses ! NetworkAddresses.Add(networkAddress)
+                btcNode.networkAddresses ! NetworkAddresses.NewCandidate(networkAddress)
 
             case Malformed(rawMessage, ccode) =>
               log.info(s"Got a malformed message: $ccode")

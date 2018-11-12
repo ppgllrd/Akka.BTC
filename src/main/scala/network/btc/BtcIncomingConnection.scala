@@ -44,10 +44,10 @@ case class BtcIncomingConnection(btcNode: BtcNode, tcpConnection: TcpConnection)
             case addr@Addr(count, addrList) =>
               log.info(s"Got $addr")
               for(networkAddress <- addrList)
-                btcNode.networkAddresses ! NetworkAddresses.Add(networkAddress)
+                btcNode.networkAddresses ! NetworkAddresses.NewCandidate(networkAddress)
 
             case Malformed(rawMessage, ccode) =>
-              log.info(s"Got a malformed message: $ccode")
+              log.error(s"Got a malformed message: $ccode")
 
             case other =>
               log.info(s"Got $other")

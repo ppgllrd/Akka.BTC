@@ -13,6 +13,7 @@ import akka.actor.{ActorRef, Props}
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import network.btc.BtcNode
+import network.tcp.TcpConnectionManager.CouldNotOpen
 
 object TcpOutgoingConnection {
   def props(id: Int, btcNode: BtcNode, remote: InetSocketAddress, createSubscriber : TcpConnection => ActorRef) =
@@ -26,6 +27,7 @@ case class TcpOutgoingConnection(id: Int, btcNode: BtcNode, remote: InetSocketAd
   def receive = {
     case CommandFailed(command: Tcp.Command) =>
       log.info(s"Failed to connect to $remote $command")
+      btcNode.tcpConnectionManager ! CouldNotOpen(remote)
       context stop self
 
     case Connected(remote, local) =>
@@ -35,7 +37,7 @@ case class TcpOutgoingConnection(id: Int, btcNode: BtcNode, remote: InetSocketAd
       tcpManager ! Register(self)
 
       val tcpConnection = TcpConnection(id, self, local, remote)
-      btcNode.tcpConnectionManager ! TcpConnectionManager.Register(tcpConnection)
+      btcNode.tcpConnectionManager ! TcpConnectionManager.Opened(tcpConnection)
 
       val subscriber = createSubscriber(tcpConnection)
 
